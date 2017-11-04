@@ -5,6 +5,11 @@ import asyncio
 import inspect
 from time import time
 from datetime import datetime
+import requests
+
+SERVER_NAME = "Geneffer"
+ANNOUNCEMENT_CHANNEL_NAME = "bot-development"
+EMOJI_CHANNEL_NAME = "emoji-requests"
 
 client = discord.Client()
 
@@ -101,6 +106,38 @@ async def on_member_remove(member):
 async def on_member_update(member_before, member_after):
     print("Event: {}".format(inspect.stack()[0][3]))
 
+async def get_current_server():
+    current_server = None
+    for server in client.servers:
+        if(server.name == SERVER_NAME):
+            current_server = server
+    if(current_server == None):
+        return None
+    return current_server
+
+async def get_channel(name):
+    current_server = await get_current_server()
+    current_channel = None
+    for channel in current_server.channels:
+        if(channel.name == name):
+            current_channel = channel
+            break
+    if(current_channel == None):
+        return None
+    return current_channel
+
+async def get_emote(name):
+    server = await get_current_server()
+    emojis = server.emojis
+    emoji = None
+    for _emoji in emojis:
+        if(_emoji.name == name):
+            emoji = _emoji
+            break
+    if(emoji == None):
+        return None
+    return "<:{}:{}>".format(emoji.name, emoji.id)
+
 @client.event
 async def on_server_emojis_update(emojis_before, emojis_after):
     added = False
@@ -116,13 +153,9 @@ async def on_server_emojis_update(emojis_before, emojis_after):
             break
     if(emoji == None):
         return
-    announce_channel = None
-    for channel in emoji.server.channels:
-        if(channel.name == "emoji-requests"):
-            announce_channel = channel
-            break
+    announce_channel = await get_channel(EMOJI_CHANNEL_NAME)
 
-    if(not added):
+    if(not added or announce_channel == None):
         return
 
     message_destination = announce_channel
@@ -131,23 +164,16 @@ async def on_server_emojis_update(emojis_before, emojis_after):
 
     print("Content: {}".format(message_content))
 
-    send_response(message_content, message_destination)
+    await send_response(message_content, message_destination)
+
 
 async def scheduled_static_name_of_the_day():
-    announce_server = None
-    for server in client.servers:
-        if(server.name == "Geneffer"):
-            announce_server = server
-    if(announce_server == None):
-        return
-    announce_channel = None
-    for channel in announce_server.channels:
-        if(channel.name == "bot-development"):
-            announce_channel = channel
-            break
-    if(announce_channel == None):
-        return
-    await send_response("Nekdo ma svatek", announce_channel)
+    announce_channel = await get_channel(ANNOUNCEMENT_CHANNEL_NAME)
+
+    svatek = requests.get("http://svatky.adresa.info/txt").text.split(";")[1].strip()
+    if(svatek == "Petr"):
+        svatek = await get_emote("antos")
+    await send_response("{} má dnes svátek {}".format(svatek, await get_emote("agrSun")), announce_channel)
 
 class Time:
     def __init__(self, hour, minute, second=0):
@@ -156,7 +182,11 @@ class Time:
         return self.i
 
 scheduled_static = [
-    [Time(22, 33), "scheduled_static_name_of_the_day", -1]
+    [Time(4, 30), "scheduled_static_name_of_the_day", -1]
+]
+
+scheduled_dynamic = [
+
 ]
 
 async def backgroud_loop():
@@ -164,9 +194,8 @@ async def backgroud_loop():
     while not client.is_closed:
         current_time = time()
         current_day = datetime.now().day
-        print(current_time)
         for i in range(len(scheduled_static)):
-            if(int(current_time % 86400) > int(scheduled_static[i][0]) and scheduled_static[i][2] != current_day):
+            if(int(current_time % 86400) > int(scheduled_static[i][0]) and scheduled_static[i][2] != current_day and int(current_time % 86400) < int(scheduled_static[i][0]) + 300):
                 scheduled_static[i][2] = current_day
                 await globals()[scheduled_static[i][1]]()
         await asyncio.sleep(1)
