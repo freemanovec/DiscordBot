@@ -3,6 +3,8 @@
 import discord
 import asyncio
 import inspect
+from time import time
+from datetime import datetime
 
 client = discord.Client()
 
@@ -131,23 +133,42 @@ async def on_server_emojis_update(emojis_before, emojis_after):
 
     send_response(message_content, message_destination)
 
+async def scheduled_static_name_of_the_day():
+    announce_server = None
+    for server in client.servers:
+        if(server.name == "Geneffer"):
+            announce_server = server
+    if(announce_server == None):
+        return
+    announce_channel = None
+    for channel in announce_server.channels:
+        if(channel.name == "bot-development"):
+            announce_channel = channel
+            break
+    if(announce_channel == None):
+        return
+    await send_response("Nekdo ma svatek", announce_channel)
+
+class Time:
+    def __init__(self, hour, minute, second=0):
+        self.i = hour * 3600 + minute * 60 + second
+    def __int__(self):
+        return self.i
+
+scheduled_static = [
+    [Time(22, 33), "scheduled_static_name_of_the_day", -1]
+]
+
 async def backgroud_loop():
     await client.wait_until_ready()
     while not client.is_closed:
-        announce_server = None
-        for server in client.servers:
-            if(server.name == "Geneffer"):
-                announce_server = server
-        if(announce_server == None):
-            continue
-        announce_channel = None
-        for channel in announce_server.channels:
-            if(channel.name == "bot-development"):
-                announce_channel = channel
-                break
-        if(announce_channel == None):
-            continue
-        await send_response("Async FTW", announce_channel)
+        current_time = time()
+        current_day = datetime.now().day
+        print(current_time)
+        for i in range(len(scheduled_static)):
+            if(int(current_time % 86400) > int(scheduled_static[i][0]) and scheduled_static[i][2] != current_day):
+                scheduled_static[i][2] = current_day
+                await globals()[scheduled_static[i][1]]()
         await asyncio.sleep(1)
 
 client.loop.create_task(backgroud_loop())
