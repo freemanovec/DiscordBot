@@ -7,6 +7,8 @@ from time import time
 from datetime import datetime
 import requests
 
+import extensions.Bakalari as Bakalari
+
 SERVER_NAME = "Geneffer"
 ANNOUNCEMENT_CHANNEL_NAME = "bot-development"
 EMOJI_CHANNEL_NAME = "emoji-requests"
@@ -175,14 +177,23 @@ async def scheduled_static_name_of_the_day():
         svatek = await get_emote("antos")
     await send_response("{} má dnes svátek {}".format(svatek, await get_emote("agrSun")), announce_channel)
 
+async def scheduled_static_rozvrh_zmeny():
+    week_info = Bakalari.get_current_week_info()
+    changes = Bakalari.get_changes_current_day(week_info)
+    announce_channel = await get_channel(ANNOUNCEMENT_CHANNEL_NAME)
+    for line in changes:
+        await send_response("{}".format(line), announce_channel)
+
 class Time:
     def __init__(self, hour, minute, second=0):
-        self.i = hour * 3600 + minute * 60 + second
+        self.i = (hour - 1) * 3600 + minute * 60 + second
     def __int__(self):
         return self.i
 
+#cas urcujici kdy se spusti, nazev obsluzne async funkce, den posledniho spusteni
 scheduled_static = [
-    [Time(4, 30), "scheduled_static_name_of_the_day", -1]
+    [Time(4, 30), "scheduled_static_name_of_the_day", -1],
+    [Time(13, 35), "scheduled_static_rozvrh_zmeny", -1]
 ]
 
 scheduled_dynamic = [
@@ -195,7 +206,13 @@ async def backgroud_loop():
         current_time = time()
         current_day = datetime.now().day
         for i in range(len(scheduled_static)):
-            if(int(current_time % 86400) > int(scheduled_static[i][0]) and scheduled_static[i][2] != current_day and int(current_time % 86400) < int(scheduled_static[i][0]) + 300):
+            validation_this_day_seconds = int(current_time % 86400)
+            validation_scheduled_seconds = int(scheduled_static[i][0])
+            validation_does_current_day_differ = scheduled_static[i][2] != current_day
+            validation_scheduled_seconds_end = validation_scheduled_seconds + 300
+            eligible = validation_this_day_seconds > validation_scheduled_seconds and validation_does_current_day_differ and validation_this_day_seconds < validation_scheduled_seconds_end
+            print("Checking if {} is elegible for execution.. {}".format(scheduled_static[i][1], "Yes" if eligible else "No"))
+            if(eligible):
                 scheduled_static[i][2] = current_day
                 await globals()[scheduled_static[i][1]]()
         await asyncio.sleep(1)

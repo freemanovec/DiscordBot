@@ -1,2 +1,4 @@
 token
 .vscode/settings.json
+extensions/configurations/private/
+__pycache__/
