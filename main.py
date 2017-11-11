@@ -193,7 +193,7 @@ class Time:
 #cas urcujici kdy se spusti, nazev obsluzne async funkce, den posledniho spusteni
 scheduled_static = [
     [Time(4, 30), "scheduled_static_name_of_the_day", -1],
-    [Time(13, 35), "scheduled_static_rozvrh_zmeny", -1]
+    [Time(4, 30), "scheduled_static_rozvrh_zmeny", -1]
 ]
 
 scheduled_dynamic = [
